@@ -118,7 +118,7 @@ select.input-s{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const API_KEY=prompt('API калитни киритинг:') || '';
+const API_KEY=prompt('API калитни киритинг (sk-ant-...):')||'';
 let map,marker;
 document.addEventListener('DOMContentLoaded',function(){
   document.querySelectorAll('[data-chip]').forEach(function(c){
@@ -145,7 +145,8 @@ function analyze(){
 }
 function callAI(){
   var u={name:document.getElementById('userName').value||'Фойдаланувчи',age:document.getElementById('userAge').value||'30',edu:document.getElementById('userEdu').value,skills:getSel('skillsChips'),region:document.getElementById('userRegion').value,district:document.getElementById('userDistrict').value,area:getSel('areaChips'),ownFunds:document.getElementById('ownFunds').value||'0',credit:document.getElementById('creditAmount').value||'0',income:document.getElementById('monthlyIncome').value||'0',collateral:document.getElementById('collateral').value,bizType:getSel('bizChips'),hasPlan:document.getElementById('hasPlan').value};
-  var prompt='Сен SQB банкининг ИИ бизнес-маслаҳатчисисан. Ўзбек кириллда жавоб бер.\nИсм: '+u.name+', Ёш: '+u.age+', Маълумот: '+u.edu+'\nКўникмалар: '+u.skills+'\nҲудуд: '+u.region+', '+u.district+', '+u.area+'\nЎз маблағи: '+u.ownFunds+' млн, Кредит: '+u.credit+' млн, Ойлик даромад: '+u.income+' млн, Гаров: '+u.collateral+'\nБизнес тури: '+u.bizType+'\nБизнес-режа: '+(u.hasPlan==='yes'?'Мавжуд':'Йўқ')+'\n\nФАҚАТ JSON: {"score":75,"scoreLabel":"Яхши","scoreDesc":"Тавсиф","canOpen":true,"invest":"150 млн","profit":"12 млн/ой","payback":"14 ой","jobs":"5-8","mainBiz":{"name":"Ном","desc":"Тавсиф","steps":["1","2","3","4","5"],"risks":["Р1","Р2"],"advantages":["У1","У2"]},"alternatives":[{"name":"А1","desc":"Т","invest":"50 млн"}],"creditProgram":"SQB дастури","bankerAction":"Банкир вазифаси"}';
+  var totalBudget=parseInt(u.ownFunds)+parseInt(u.credit);
+  var prompt='Сен SQB банкининг ИИ бизнес-маслаҳатчисисан. Ўзбек кириллда жавоб бер.\n\nМУҲИМ ҚОИДАЛАР:\n1. Фойдаланувчининг БЮДЖЕТИ: ўз маблағи '+u.ownFunds+' млн + кредит '+u.credit+' млн = ЖАМИ '+totalBudget+' млн сўм. Сен ФАҚАТ шу бюджет доирасида бизнес тавсия қил! '+totalBudget+' млн дан ортиқ инвестиция тавсия ҚИЛМА.\n2. Агар бюджет кам бўлса — аниқ ёз: "Сизнинг '+totalBudget+' млн бюджетингиз билан [бизнес] очиш мумкин" ёки "Бу бизнес учун камида X млн керак, сизда '+totalBudget+' млн бор, яна Y млн етишмайди".\n3. invest майдонида ФАҚАТ '+totalBudget+' млн ёки ундан кам рақам бўлсин.\n4. Альтернативларда арзонроқ вариантлар бер.\n5. Ҳар бир рақам реалистик бўлсин — Ўзбекистон бозори нархларида.\n\nИсм: '+u.name+', Ёш: '+u.age+', Маълумот: '+u.edu+'\nКўникмалар: '+u.skills+'\nҲудуд: '+u.region+', '+u.district+', '+u.area+'\nЎз маблағи: '+u.ownFunds+' млн сўм\nКредит: '+u.credit+' млн сўм\nЖАМИ БЮДЖЕТ: '+totalBudget+' млн сўм\nОйлик даромад: '+u.income+' млн, Гаров: '+u.collateral+'\nБизнес тури: '+u.bizType+'\nБизнес-режа: '+(u.hasPlan==='yes'?'Мавжуд':'Йўқ')+'\n\nФАҚАТ JSON: {"score":75,"scoreLabel":"Яхши","scoreDesc":"Тавсиф","canOpen":true,"invest":"'+totalBudget+' млн","profit":"X млн/ой","payback":"Y ой","jobs":"N","budgetNote":"Сизда '+totalBudget+' млн бор. Етарли/етишмайди тавсиф.","mainBiz":{"name":"Ном","desc":"Тавсиф","steps":["1","2","3","4","5"],"risks":["Р1","Р2"],"advantages":["У1","У2"]},"alternatives":[{"name":"А1","desc":"Т","invest":"арзонроқ"}],"creditProgram":"SQB дастури","bankerAction":"Банкир вазифаси"}';
   fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:prompt}]})}).then(function(r){return r.json()}).then(function(d){
     var t=d.content[0].text;var m=t.match(/\{[\s\S]*\}/);
     if(m){showResult(JSON.parse(m[0]))}else{showErr('ИИ жавобини ўқиб бўлмади')}
@@ -190,6 +191,7 @@ function showResult(r){
   r.mainBiz.steps.forEach(function(s){var li=document.createElement('li');li.style.cssText='font-size:12px;padding:3px 0;color:var(--body)';li.textContent=s;ol.appendChild(li)});
   sl.appendChild(ol);card.appendChild(sl);
 
+  if(r.budgetNote){var bn=document.createElement('div');bn.style.cssText='margin:0 20px 12px;padding:12px 16px;background:var(--orange-lt);border-radius:var(--radius-sm);font-size:12px;color:var(--dark);font-weight:600';bn.textContent='💰 '+r.budgetNote;card.appendChild(bn)}
   var cr=document.createElement('div');cr.className='credit-box';
   var strong=document.createElement('strong');strong.style.color='var(--blue)';strong.textContent='🏦 SQB кредит: ';
   cr.appendChild(strong);cr.appendChild(document.createTextNode(r.creditProgram));card.appendChild(cr);
