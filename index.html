@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQB AI Advisor — Бизнес маслаҳатчи</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --blue:#0066B3;--blue-dk:#004A8F;--blue-lt:#EBF5FF;
+  --green:#00A651;--green-lt:#E8F9F0;
+  --orange:#F7941D;--orange-lt:#FFF5E6;
+  --dark:#0f172a;--body:#334155;--muted:#94a3b8;
+  --bg:#f8fafc;--card:#ffffff;
+  --border:#e2e8f0;--border-lt:#f1f5f9;
+  --radius:16px;--radius-sm:10px;
+  --shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04);
+  --shadow-lg:0 4px 24px rgba(0,0,0,0.08);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--body);min-height:100vh;-webkit-font-smoothing:antialiased}
+.nav-top{background:var(--card);border-bottom:1px solid var(--border);padding:14px 0;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
+.nav-inner{max-width:800px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--dark)}
+.nav-logo{width:36px;height:36px;background:var(--blue);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:11px}
+.nav-title{font-weight:800;font-size:16px;line-height:1.2}
+.nav-sub{font-size:10px;color:var(--muted);font-weight:400}
+.nav-badge{background:var(--green-lt);color:var(--green);font-size:10px;padding:4px 10px;border-radius:20px;font-weight:700}
+.steps{display:flex;gap:2px;max-width:800px;margin:24px auto 0;padding:0 20px}
+.step{flex:1;text-align:center;padding:10px 4px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:2.5px solid var(--border);cursor:pointer;transition:.2s}
+.step.active{color:var(--blue);border-color:var(--blue)}
+.step.done{color:var(--green);border-color:var(--green)}
+.step-num{display:inline-flex;width:20px;height:20px;border-radius:50%;align-items:center;justify-content:center;font-size:10px;margin-right:4px;background:var(--border-lt);color:var(--muted);font-weight:700}
+.step.active .step-num{background:var(--blue);color:#fff}
+.step.done .step-num{background:var(--green);color:#fff}
+.screen{display:none;max-width:800px;margin:0 auto;padding:24px 20px 60px}
+.screen.active{display:block}
+.screen-title{font-size:24px;font-weight:800;color:var(--dark);margin-bottom:4px;letter-spacing:-.5px}
+.screen-desc{font-size:14px;color:var(--muted);margin-bottom:24px}
+.card-s{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:16px}
+.card-s h4{font-size:14px;font-weight:700;color:var(--dark);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-s h4::before{content:'';width:3px;height:16px;background:var(--blue);border-radius:2px}
+.label-s{font-size:11px;font-weight:700;color:var(--dark);letter-spacing:.3px;margin-bottom:5px;display:block}
+.input-s{width:100%;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:14px;font-family:inherit;transition:.15s;background:var(--card);color:var(--dark);outline:none}
+.input-s:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,102,179,.08)}
+select.input-s{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:9px 18px;border:1.5px solid var(--border);border-radius:24px;font-size:13px;font-weight:500;cursor:pointer;transition:.15s;user-select:none;color:var(--body);background:var(--card);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.chip:hover{border-color:var(--blue);color:var(--blue)}
+.chip:active{transform:scale(0.95)}
+.chip.sel{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-main{background:var(--blue);color:#fff;border:none;border-radius:var(--radius-sm);padding:12px 28px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:.15s}
+.btn-main:hover{background:var(--blue-dk);transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+.btn-ghost{background:transparent;color:var(--blue);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 24px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:.15s}
+.btn-ghost:hover{border-color:var(--blue);background:var(--blue-lt)}
+.btn-green{background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);padding:12px 28px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:.15s}
+.btn-green:hover{background:#00904a;transform:translateY(-1px)}
+.btn-row{display:flex;justify-content:space-between;align-items:center;margin-top:20px}
+#map{height:260px;border-radius:var(--radius);border:1.5px solid var(--border)}
+.loader-wrap{text-align:center;padding:60px 20px}
+.spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-step{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px;color:var(--muted)}
+.load-step.done{color:var(--green);font-weight:600}
+.load-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;background:var(--border-lt);color:var(--muted);font-weight:700;flex-shrink:0}
+.load-step.done .load-dot{background:var(--green);color:#fff}
+.dash{display:grid;grid-template-columns:200px 1fr;gap:16px;margin-bottom:20px}
+.score-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-align:center;box-shadow:var(--shadow)}
+.score-ring{width:100px;height:100px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 10px;border:5px solid}
+.score-ring.high{border-color:var(--green);color:var(--green);background:var(--green-lt)}
+.score-ring.mid{border-color:var(--orange);color:var(--orange);background:var(--orange-lt)}
+.score-ring.low{border-color:#ef4444;color:#ef4444;background:#fef2f2}
+.score-num{font-size:28px;font-weight:900;line-height:1}
+.score-lbl{font-size:9px;font-weight:500;opacity:.7}
+.score-txt{font-size:13px;font-weight:700;color:var(--dark);margin-bottom:2px}
+.score-desc-t{font-size:11px;color:var(--muted);line-height:1.4}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.m-box{border-radius:var(--radius-sm);padding:16px;text-align:center;color:#fff}
+.m-box.bl{background:var(--blue)}.m-box.gr{background:var(--green)}.m-box.or{background:var(--orange)}.m-box.dk{background:var(--dark)}
+.m-val{font-size:22px;font-weight:800;line-height:1.2}
+.m-lbl{font-size:10px;opacity:.8;margin-top:2px}
+.biz-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:16px}
+.biz-head{background:var(--blue-lt);padding:16px 20px;border-bottom:1px solid var(--border)}
+.biz-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.steps-list{padding:20px;border-top:1px solid var(--border)}
+.credit-box{margin:0 20px 20px;padding:14px 16px;background:var(--blue-lt);border-radius:var(--radius-sm);font-size:12px}
+.alt-card{border-left:3px solid var(--orange);background:var(--card);padding:14px 16px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:8px;box-shadow:var(--shadow)}
+.modal-s{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-s.show{display:flex}
+.modal-box{background:var(--card);border-radius:var(--radius);padding:40px;max-width:420px;width:90%;text-align:center;box-shadow:var(--shadow-lg)}
+@media(max-width:640px){
+  .nav-title{font-size:14px}.steps{gap:1px;margin-top:16px}.step{font-size:9px;padding:8px 2px}
+  .step-num{width:16px;height:16px;font-size:8px;margin-right:2px}.screen{padding:16px 14px 40px}
+  .screen-title{font-size:20px}.card-s{padding:18px}.chip{padding:10px 16px;font-size:12px;min-height:42px;display:inline-flex;align-items:center}
+  .btn-main,.btn-green{width:100%;padding:14px}.btn-ghost{width:100%;margin-bottom:8px}
+  .btn-row{flex-direction:column-reverse;gap:8px}.dash{grid-template-columns:1fr}
+  .biz-body{grid-template-columns:1fr}#map{height:200px}.m-val{font-size:18px}.metrics{gap:8px}
+}
+</style>
+</head>
+<body>
+<nav class="nav-top"><div class="nav-inner"><a class="nav-brand" href="#"><div class="nav-logo">SQB</div><div><div class="nav-title">SQB AI Advisor</div><div class="nav-sub">Бизнес маслаҳатчи</div></div></a><span class="nav-badge" id="apiStatus">API тайёр</span></div></nav>
+<div class="steps" id="stepNav"><div class="step active" data-s="1"><span class="step-num">1</span>Сиз ким</div><div class="step" data-s="2"><span class="step-num">2</span>Ҳудуд</div><div class="step" data-s="3"><span class="step-num">3</span>Молия</div><div class="step" data-s="4"><span class="step-num">4</span>Таҳлил</div><div class="step" data-s="5"><span class="step-num">5</span>Натижа</div></div>
+
+<div class="screen active" id="s1"><h2 class="screen-title">Ўзингиз ҳақингизда</h2><p class="screen-desc">ИИ сизга мос бизнес йўналишини топади</p><div class="card-s"><h4>Шахсий маълумот</h4><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label class="label-s">Исмингиз</label><input class="input-s" id="userName" placeholder="Алишер"></div><div><label class="label-s">Ёшингиз</label><input class="input-s" id="userAge" type="number" placeholder="28" min="18" max="70"></div><div><label class="label-s">Жинс</label><select class="input-s" id="userGender"><option value="male">Эркак</option><option value="female">Аёл</option></select></div><div><label class="label-s">Маълумот</label><select class="input-s" id="userEdu"><option>Ўрта</option><option>Ўрта махсус</option><option>Олий техник</option><option>Олий иқтисодий</option><option>Олий гуманитар</option><option>MBA</option></select></div></div></div><div class="card-s"><h4>Кўникмаларингиз</h4><div class="chips" id="skillsChips"><span class="chip" data-chip>Бошқарув</span><span class="chip" data-chip>Савдо</span><span class="chip" data-chip>Бухгалтерия</span><span class="chip" data-chip>IT</span><span class="chip" data-chip>Қишлоқ хўжалиги</span><span class="chip" data-chip>Ошпазлик</span><span class="chip" data-chip>Логистика</span><span class="chip" data-chip>Маркетинг</span><span class="chip" data-chip>Тикувчилик</span><span class="chip" data-chip>Қурилиш</span><span class="chip" data-chip>Чорвачилик</span><span class="chip" data-chip>Ҳайдовчилик</span></div></div><div class="btn-row" style="justify-content:flex-end"><button class="btn-main" onclick="go(2)">Кейинги →</button></div></div>
+
+<div class="screen" id="s2"><h2 class="screen-title">Ҳудудни танланг</h2><p class="screen-desc">Бизнес жойлашувини белгиланг</p><div class="card-s"><h4>Жойлашув</h4><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px"><div><label class="label-s">Вилоят</label><select class="input-s" id="userRegion"><option>Самарқанд вилояти</option><option>Тошкент вилояти</option><option>Фарғона вилояти</option><option>Андижон вилояти</option><option>Наманган вилояти</option><option>Бухоро вилояти</option><option>Қашқадарё вилояти</option><option>Сурхондарё вилояти</option><option>Хоразм вилояти</option><option>Навоий вилояти</option><option>Жиззах вилояти</option><option>Сирдарё вилояти</option><option>Қорақалпоғистон</option></select></div><div><label class="label-s">Туман</label><select class="input-s" id="userDistrict"><option>Оқдарё тумани</option><option>Жомбой тумани</option><option>Пайариқ тумани</option><option>Самарқанд шаҳри</option><option>Каттақўрғон шаҳри</option><option>Ургут тумани</option><option>Нарпай тумани</option><option>Тойлоқ тумани</option><option>Булунғур тумани</option><option>Иштихон тумани</option><option>Пастдарғом тумани</option><option>Нуробод тумани</option><option>Қўшработ тумани</option></select></div></div><div id="map"></div></div><div class="card-s"><h4>Аҳоли пункти тури</h4><div class="chips" id="areaChips"><span class="chip" data-chip>Вилоят маркази</span><span class="chip" data-chip>Туман маркази</span><span class="chip sel" data-chip>Кичик шаҳар</span><span class="chip" data-chip>Қишлоқ</span></div></div><div class="btn-row"><button class="btn-ghost" onclick="go(1)">← Орқага</button><button class="btn-main" onclick="go(3)">Кейинги →</button></div></div>
+
+<div class="screen" id="s3"><h2 class="screen-title">Молиявий имкониятлар</h2><p class="screen-desc">Бюджет ва бизнес турини белгиланг</p><div class="card-s"><h4>Инвестиция</h4><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label class="label-s">Ўз маблағ (млн сўм)</label><input class="input-s" id="ownFunds" type="number" placeholder="50" min="0"></div><div><label class="label-s">Кредит (млн сўм)</label><input class="input-s" id="creditAmount" type="number" placeholder="100" min="0"></div><div><label class="label-s">Ойлик даромад (млн)</label><input class="input-s" id="monthlyIncome" type="number" placeholder="5" min="0"></div><div><label class="label-s">Гаров мулки</label><select class="input-s" id="collateral"><option>Уй / хонадон</option><option>Ер участка</option><option>Автомобил</option><option>Тижорат мулки</option><option>Йўқ</option></select></div></div></div><div class="card-s"><h4>Бизнес йўналиши</h4><div class="chips" id="bizChips"><span class="chip" data-chip>Озиқ-овқат</span><span class="chip" data-chip>Тўқимачилик</span><span class="chip" data-chip>Қурилиш материаллари</span><span class="chip" data-chip>Чорвачилик</span><span class="chip" data-chip>Боғдорчилик</span><span class="chip" data-chip>Мева-сабзавот қайта ишлаш</span><span class="chip" data-chip>Кафе / ресторан</span><span class="chip" data-chip>Савдо</span><span class="chip" data-chip>Транспорт</span><span class="chip" data-chip>IT / рақамли</span><span class="chip" data-chip>Таълим курслари</span><span class="chip" data-chip>Гўзаллик салони</span><span class="chip" data-chip>Мебель</span><span class="chip" data-chip>Фармацевтика</span></div></div><div class="card-s"><h4>Бизнес-режангиз борми?</h4><select class="input-s" id="hasPlan" style="max-width:300px" onchange="document.getElementById('planUpload').style.display=this.value==='yes'?'block':'none'"><option value="no">Йўқ, ИИ яратсин</option><option value="yes">Ҳа, баҳолаш керак</option></select><div id="planUpload" style="display:none;margin-top:10px"><input class="input-s" type="file" accept=".pdf,.docx,.txt"></div></div><div class="btn-row"><button class="btn-ghost" onclick="go(2)">← Орқага</button><button class="btn-green" onclick="analyze()">🤖 ИИ таҳлил бошлаш</button></div></div>
+
+<div class="screen" id="s4"><div class="loader-wrap"><div class="spinner"></div><h2 class="screen-title" style="text-align:center;margin-bottom:4px">ИИ таҳлил қилмоқда...</h2><p class="screen-desc" style="text-align:center">Маълумотларингиз ўрганилмоқда</p><div style="max-width:360px;margin:20px auto 0;text-align:left"><div class="load-step done" id="ls1"><div class="load-dot">✓</div>Шахсий профил</div><div class="load-step" id="ls2"><div class="load-dot">2</div>Ҳудуд бозори</div><div class="load-step" id="ls3"><div class="load-dot">3</div>Молиявий имконият</div><div class="load-step" id="ls4"><div class="load-dot">4</div>Бизнес-модел</div><div class="load-step" id="ls5"><div class="load-dot">5</div>Скоринг</div><div class="load-step" id="ls6"><div class="load-dot">6</div>Бизнес-режа</div></div></div></div>
+
+<div class="screen" id="s5"><h2 class="screen-title">Таҳлил натижаси</h2><p class="screen-desc">ИИ тавсияси</p><div class="dash"><div class="score-card"><div class="score-ring high" id="scoreRing"><span class="score-num" id="scoreVal">—</span><span class="score-lbl">балл</span></div><div class="score-txt" id="scoreLbl">Баҳоланмоқда</div><div class="score-desc-t" id="scoreDesc"></div></div><div class="metrics"><div class="m-box bl"><div class="m-val" id="mInvest">—</div><div class="m-lbl">Жами инвестиция</div></div><div class="m-box gr"><div class="m-val" id="mProfit">—</div><div class="m-lbl">Фойда / ой</div></div><div class="m-box or"><div class="m-val" id="mPayback">—</div><div class="m-lbl">Қоплаш муддати</div></div><div class="m-box dk"><div class="m-val" id="mJobs">—</div><div class="m-lbl">Иш ўринлари</div></div></div></div><div id="aiResult"></div><div id="altResult"></div><div class="btn-row" style="margin-top:24px;margin-bottom:40px"><button class="btn-ghost" onclick="go(1)">🔄 Янги таҳлил</button><button class="btn-green" onclick="applyBank()">📨 Банкка ариза юбориш</button></div></div>
+
+<div class="modal-s" id="bankModal"><div class="modal-box"><div style="font-size:44px;margin-bottom:12px">✅</div><h3 style="font-weight:800;color:var(--dark);margin-bottom:6px">Ариза юборилди!</h3><p style="font-size:13px;color:var(--muted);margin-bottom:16px">Маҳалла банкири тез орада боғланади</p><div style="text-align:left;background:var(--blue-lt);padding:14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px"><div><strong>Банкир:</strong> <span id="bankerName">Абдуллаев Шерзод</span></div><div><strong>Телефон:</strong> <span id="bankerPhone">+998 91 234 56 78</span></div><div style="margin-top:6px;font-size:11px;color:var(--muted)">Ариза: <span id="appId">—</span></div></div><button class="btn-main" onclick="document.getElementById('bankModal').classList.remove('show')">Тушундим</button></div></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const API_KEY=prompt('API калитни киритинг:') || '';
+let map,marker;
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('[data-chip]').forEach(function(c){
+    c.addEventListener('click',function(e){e.preventDefault();this.classList.toggle('sel')});
+    c.addEventListener('touchend',function(e){e.preventDefault();this.classList.toggle('sel')});
+  });
+  setTimeout(function(){
+    map=L.map('map').setView([39.65,66.96],10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OpenStreetMap'}).addTo(map);
+    map.on('click',function(e){if(marker)map.removeLayer(marker);marker=L.marker(e.latlng).addTo(map)});
+  },300);
+});
+function go(n){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
+  document.getElementById('s'+n).classList.add('active');
+  document.querySelectorAll('.step').forEach(function(s,i){s.classList.remove('active','done');if(i+1<n)s.classList.add('done');if(i+1===n)s.classList.add('active')});
+  if(n===2&&map)setTimeout(function(){map.invalidateSize()},100);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function getSel(id){return Array.from(document.querySelectorAll('#'+id+' .chip.sel')).map(function(c){return c.textContent}).join(', ')}
+function analyze(){
+  go(4);var steps=['ls1','ls2','ls3','ls4','ls5','ls6'],i=0;
+  function next(){if(i<steps.length){document.getElementById(steps[i]).classList.add('done');document.getElementById(steps[i]).querySelector('.load-dot').textContent='✓';i++;setTimeout(next,700)}else{callAI()}}next();
+}
+function callAI(){
+  var u={name:document.getElementById('userName').value||'Фойдаланувчи',age:document.getElementById('userAge').value||'30',edu:document.getElementById('userEdu').value,skills:getSel('skillsChips'),region:document.getElementById('userRegion').value,district:document.getElementById('userDistrict').value,area:getSel('areaChips'),ownFunds:document.getElementById('ownFunds').value||'0',credit:document.getElementById('creditAmount').value||'0',income:document.getElementById('monthlyIncome').value||'0',collateral:document.getElementById('collateral').value,bizType:getSel('bizChips'),hasPlan:document.getElementById('hasPlan').value};
+  var prompt='Сен SQB банкининг ИИ бизнес-маслаҳатчисисан. Ўзбек кириллда жавоб бер.\nИсм: '+u.name+', Ёш: '+u.age+', Маълумот: '+u.edu+'\nКўникмалар: '+u.skills+'\nҲудуд: '+u.region+', '+u.district+', '+u.area+'\nЎз маблағи: '+u.ownFunds+' млн, Кредит: '+u.credit+' млн, Ойлик даромад: '+u.income+' млн, Гаров: '+u.collateral+'\nБизнес тури: '+u.bizType+'\nБизнес-режа: '+(u.hasPlan==='yes'?'Мавжуд':'Йўқ')+'\n\nФАҚАТ JSON: {"score":75,"scoreLabel":"Яхши","scoreDesc":"Тавсиф","canOpen":true,"invest":"150 млн","profit":"12 млн/ой","payback":"14 ой","jobs":"5-8","mainBiz":{"name":"Ном","desc":"Тавсиф","steps":["1","2","3","4","5"],"risks":["Р1","Р2"],"advantages":["У1","У2"]},"alternatives":[{"name":"А1","desc":"Т","invest":"50 млн"}],"creditProgram":"SQB дастури","bankerAction":"Банкир вазифаси"}';
+  fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:prompt}]})}).then(function(r){return r.json()}).then(function(d){
+    var t=d.content[0].text;var m=t.match(/\{[\s\S]*\}/);
+    if(m){showResult(JSON.parse(m[0]))}else{showErr('ИИ жавобини ўқиб бўлмади')}
+    go(5);
+  }).catch(function(e){showErr('Хатолик: '+e.message);go(5)});
+}
+function showResult(r){
+  document.getElementById('scoreVal').textContent=r.score;
+  document.getElementById('scoreLbl').textContent=r.scoreLabel;
+  document.getElementById('scoreDesc').textContent=r.scoreDesc;
+  var ring=document.getElementById('scoreRing');
+  ring.className='score-ring '+(r.score>=70?'high':r.score>=40?'mid':'low');
+  document.getElementById('mInvest').textContent=r.invest;
+  document.getElementById('mProfit').textContent=r.profit;
+  document.getElementById('mPayback').textContent=r.payback;
+  document.getElementById('mJobs').textContent=r.jobs;
+
+  var ai=document.getElementById('aiResult');
+  while(ai.firstChild)ai.removeChild(ai.firstChild);
+
+  var card=document.createElement('div');card.className='biz-card';
+  var head=document.createElement('div');head.className='biz-head';
+  var h4=document.createElement('h4');h4.style.cssText='margin:0;font-size:16px;font-weight:800;color:var(--blue)';h4.textContent='🎯 '+r.mainBiz.name;head.appendChild(h4);
+  var desc=document.createElement('p');desc.style.cssText='margin:4px 0 0;font-size:13px;color:var(--body)';desc.textContent=r.mainBiz.desc;head.appendChild(desc);card.appendChild(head);
+
+  var body=document.createElement('div');body.className='biz-body';
+  var col1=document.createElement('div');col1.className='biz-col good';
+  var h51=document.createElement('h5');h51.style.cssText='font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px';h51.textContent='✅ Устунликлар';col1.appendChild(h51);
+  var ul1=document.createElement('ul');ul1.style.cssText='list-style:none;padding:0;margin:0';
+  r.mainBiz.advantages.forEach(function(a){var li=document.createElement('li');li.style.cssText='font-size:12px;padding:4px 0;color:var(--body)';li.textContent='● '+a;ul1.appendChild(li)});
+  col1.appendChild(ul1);body.appendChild(col1);
+
+  var col2=document.createElement('div');col2.className='biz-col risk';
+  var h52=document.createElement('h5');h52.style.cssText='font-size:12px;font-weight:700;color:var(--orange);margin-bottom:8px';h52.textContent='⚠ Рисклар';col2.appendChild(h52);
+  var ul2=document.createElement('ul');ul2.style.cssText='list-style:none;padding:0;margin:0';
+  r.mainBiz.risks.forEach(function(a){var li=document.createElement('li');li.style.cssText='font-size:12px;padding:4px 0;color:var(--body)';li.textContent='● '+a;ul2.appendChild(li)});
+  col2.appendChild(ul2);body.appendChild(col2);card.appendChild(body);
+
+  var sl=document.createElement('div');sl.className='steps-list';
+  var h5s=document.createElement('h5');h5s.style.cssText='font-size:12px;font-weight:700;color:var(--dark);margin-bottom:10px';h5s.textContent='📋 Биринчи қадамлар';sl.appendChild(h5s);
+  var ol=document.createElement('ol');ol.style.cssText='padding-left:20px;margin:0';
+  r.mainBiz.steps.forEach(function(s){var li=document.createElement('li');li.style.cssText='font-size:12px;padding:3px 0;color:var(--body)';li.textContent=s;ol.appendChild(li)});
+  sl.appendChild(ol);card.appendChild(sl);
+
+  var cr=document.createElement('div');cr.className='credit-box';
+  var strong=document.createElement('strong');strong.style.color='var(--blue)';strong.textContent='🏦 SQB кредит: ';
+  cr.appendChild(strong);cr.appendChild(document.createTextNode(r.creditProgram));card.appendChild(cr);
+  ai.appendChild(card);
+
+  var alt=document.getElementById('altResult');
+  while(alt.firstChild)alt.removeChild(alt.firstChild);
+  if(r.alternatives&&r.alternatives.length>0){
+    var ah=document.createElement('h4');ah.style.cssText='font-size:14px;font-weight:700;color:var(--dark);margin:20px 0 10px';ah.textContent='🔄 Альтернативлар';alt.appendChild(ah);
+    r.alternatives.forEach(function(x){
+      var ac=document.createElement('div');ac.className='alt-card';
+      var b=document.createElement('strong');b.style.cssText='font-size:13px;color:var(--dark)';b.textContent=x.name+' — '+x.invest;ac.appendChild(b);
+      var p=document.createElement('p');p.style.cssText='font-size:11px;color:var(--muted);margin:4px 0 0';p.textContent=x.desc;ac.appendChild(p);
+      alt.appendChild(ac);
+    });
+  }
+}
+function showErr(m){
+  var ai=document.getElementById('aiResult');while(ai.firstChild)ai.removeChild(ai.firstChild);
+  var d=document.createElement('div');d.className='card-s';d.style.borderLeft='3px solid #ef4444';
+  var p=document.createElement('p');p.style.cssText='color:#ef4444;font-weight:600';p.textContent=m;
+  d.appendChild(p);ai.appendChild(d);go(5);
+}
+function applyBank(){
+  var id='SQB-'+Date.now().toString(36).toUpperCase();
+  document.getElementById('appId').textContent=id;
+  document.getElementById('bankModal').classList.add('show');
+}
+</script>
+</body>
+</html>
