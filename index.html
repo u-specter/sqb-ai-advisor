@@ -121,25 +121,65 @@ select.input-s{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
 const API_KEY=prompt('API калитни киритинг (sk-ant-...):')||'';
 let map,marker;
 document.addEventListener('DOMContentLoaded',function(){
+  // BUG-001 fix: proper touch/click handling
   document.querySelectorAll('[data-chip]').forEach(function(c){
-    c.addEventListener('click',function(e){e.preventDefault();this.classList.toggle('sel')});
-    c.addEventListener('touchend',function(e){e.preventDefault();this.classList.toggle('sel')});
+    var lastTouch=0;
+    c.addEventListener('touchend',function(e){
+      e.preventDefault();lastTouch=Date.now();this.classList.toggle('sel');
+    },{passive:false});
+    c.addEventListener('click',function(){
+      if(Date.now()-lastTouch<500)return;this.classList.toggle('sel');
+    });
   });
-  setTimeout(function(){
-    map=L.map('map').setView([39.65,66.96],10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OpenStreetMap'}).addTo(map);
-    map.on('click',function(e){if(marker)map.removeLayer(marker);marker=L.marker(e.latlng).addTo(map)});
-  },300);
+  // BUG-011 fix: area type single-select
+  document.querySelectorAll('#areaChips [data-chip]').forEach(function(c){
+    c.addEventListener('touchend',function(e){
+      e.preventDefault();lastTouch=Date.now();
+      document.querySelectorAll('#areaChips [data-chip]').forEach(function(x){x.classList.remove('sel')});
+      this.classList.add('sel');
+    },{passive:false});
+    c.addEventListener('click',function(){
+      if(Date.now()-lastTouch<500)return;
+      document.querySelectorAll('#areaChips [data-chip]').forEach(function(x){x.classList.remove('sel')});
+      this.classList.add('sel');
+    });
+    var lastTouch=0;
+  });
+  // BUG-005 fix: step nav click
+  document.querySelectorAll('.step[data-s]').forEach(function(s){
+    s.addEventListener('click',function(){
+      var t=parseInt(this.getAttribute('data-s'));
+      var cur=document.querySelector('.step.active');
+      var c=cur?parseInt(cur.getAttribute('data-s')):1;
+      if(t<c)go(t);
+    });
+  });
+  // BUG-019 fix: modal backdrop close
+  document.getElementById('bankModal').addEventListener('click',function(e){
+    if(e.target===this)this.classList.remove('show');
+  });
 });
 function go(n){
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
   document.getElementById('s'+n).classList.add('active');
   document.querySelectorAll('.step').forEach(function(s,i){s.classList.remove('active','done');if(i+1<n)s.classList.add('done');if(i+1===n)s.classList.add('active')});
-  if(n===2&&map)setTimeout(function(){map.invalidateSize()},100);
+  // BUG-015 fix: lazy map init
+  if(n===2&&!map){
+    map=L.map('map').setView([39.65,66.96],10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OpenStreetMap'}).addTo(map);
+    map.on('click',function(e){if(marker)map.removeLayer(marker);marker=L.marker(e.latlng).addTo(map)});
+  }else if(n===2&&map){setTimeout(function(){map.invalidateSize()},100)}
+  // BUG-017 fix: reset loader on re-run
+  if(n===1){['ls1','ls2','ls3','ls4','ls5','ls6'].forEach(function(id,i){
+    var el=document.getElementById(id);el.classList.remove('done');el.querySelector('.load-dot').textContent=i===0?'✓':''+(i+1);
+  })}
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function getSel(id){return Array.from(document.querySelectorAll('#'+id+' .chip.sel')).map(function(c){return c.textContent}).join(', ')}
 function analyze(){
+  // BUG-006 fix: disable button
+  var btn=document.querySelector('#s3 .btn-green');
+  if(btn){btn.disabled=true;btn.textContent='Юкланмоқда...'}
   go(4);var steps=['ls1','ls2','ls3','ls4','ls5','ls6'],i=0;
   function next(){if(i<steps.length){document.getElementById(steps[i]).classList.add('done');document.getElementById(steps[i]).querySelector('.load-dot').textContent='✓';i++;setTimeout(next,700)}else{callAI()}}next();
 }
@@ -147,11 +187,19 @@ function callAI(){
   var u={name:document.getElementById('userName').value||'Фойдаланувчи',age:document.getElementById('userAge').value||'30',edu:document.getElementById('userEdu').value,skills:getSel('skillsChips'),region:document.getElementById('userRegion').value,district:document.getElementById('userDistrict').value,area:getSel('areaChips'),ownFunds:document.getElementById('ownFunds').value||'0',credit:document.getElementById('creditAmount').value||'0',income:document.getElementById('monthlyIncome').value||'0',collateral:document.getElementById('collateral').value,bizType:getSel('bizChips'),hasPlan:document.getElementById('hasPlan').value};
   var totalBudget=parseInt(u.ownFunds)+parseInt(u.credit);
   var prompt='Сен SQB банкининг ИИ бизнес-маслаҳатчисисан. Ўзбек кириллда жавоб бер.\n\nМУҲИМ ҚОИДАЛАР:\n1. Фойдаланувчининг БЮДЖЕТИ: ўз маблағи '+u.ownFunds+' млн + кредит '+u.credit+' млн = ЖАМИ '+totalBudget+' млн сўм. Сен ФАҚАТ шу бюджет доирасида бизнес тавсия қил! '+totalBudget+' млн дан ортиқ инвестиция тавсия ҚИЛМА.\n2. Агар бюджет кам бўлса — аниқ ёз: "Сизнинг '+totalBudget+' млн бюджетингиз билан [бизнес] очиш мумкин" ёки "Бу бизнес учун камида X млн керак, сизда '+totalBudget+' млн бор, яна Y млн етишмайди".\n3. invest майдонида ФАҚАТ '+totalBudget+' млн ёки ундан кам рақам бўлсин.\n4. Альтернативларда арзонроқ вариантлар бер.\n5. Ҳар бир рақам реалистик бўлсин — Ўзбекистон бозори нархларида.\n\nИсм: '+u.name+', Ёш: '+u.age+', Маълумот: '+u.edu+'\nКўникмалар: '+u.skills+'\nҲудуд: '+u.region+', '+u.district+', '+u.area+'\nЎз маблағи: '+u.ownFunds+' млн сўм\nКредит: '+u.credit+' млн сўм\nЖАМИ БЮДЖЕТ: '+totalBudget+' млн сўм\nОйлик даромад: '+u.income+' млн, Гаров: '+u.collateral+'\nБизнес тури: '+u.bizType+'\nБизнес-режа: '+(u.hasPlan==='yes'?'Мавжуд':'Йўқ')+'\n\nФАҚАТ JSON: {"score":75,"scoreLabel":"Яхши","scoreDesc":"Тавсиф","canOpen":true,"invest":"'+totalBudget+' млн","profit":"X млн/ой","payback":"Y ой","jobs":"N","budgetNote":"Сизда '+totalBudget+' млн бор. Етарли/етишмайди тавсиф.","mainBiz":{"name":"Ном","desc":"Тавсиф","steps":["1","2","3","4","5"],"risks":["Р1","Р2"],"advantages":["У1","У2"]},"alternatives":[{"name":"А1","desc":"Т","invest":"арзонроқ"}],"creditProgram":"SQB дастури","bankerAction":"Банкир вазифаси"}';
-  fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:prompt}]})}).then(function(r){return r.json()}).then(function(d){
-    var t=d.content[0].text;var m=t.match(/\{[\s\S]*\}/);
-    if(m){showResult(JSON.parse(m[0]))}else{showErr('ИИ жавобини ўқиб бўлмади')}
-    go(5);
-  }).catch(function(e){showErr('Хатолик: '+e.message);go(5)});
+  // BUG-010 fix: timeout
+  var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort()},45000);
+  fetch('https://api.anthropic.com/v1/messages',{signal:ctrl.signal,method:'POST',headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:prompt}]})}).then(function(r){clearTimeout(timer);return r.json()}).then(function(d){
+    // BUG-002+003 fix: safe parse
+    try{
+      if(d.error)throw new Error(d.error.message||'API хатоси');
+      if(!d.content||!d.content[0])throw new Error('Бўш жавоб');
+      var t=d.content[0].text;var m=t.match(/\{[\s\S]*\}/);
+      if(m){showResult(JSON.parse(m[0]))}else{showErr('ИИ жавобини ўқиб бўлмади')}
+    }catch(err){showErr('Хатолик: '+err.message)}
+    go(5);resetBtn();
+  }).catch(function(e){clearTimeout(timer);showErr(e.name==='AbortError'?'Вақт тугади, қайта уриниб кўринг':'Тармоқ хатоси: '+e.message);go(5);resetBtn()});
+  function resetBtn(){var b=document.querySelector('#s3 .btn-green');if(b){b.disabled=false;b.textContent='🤖 ИИ таҳлил бошлаш'}}
 }
 function showResult(r){
   document.getElementById('scoreVal').textContent=r.score;
